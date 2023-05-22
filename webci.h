@@ -46,6 +46,20 @@ struct base_lite {
 
 char buffer[BUFFER_SIZE] = {0};
 
+void comprime_code(char *texto) {
+    int i, j;
+    int longitud = strlen(texto);
+
+    for (i = 0, j = 0; i < longitud; i++) {
+        if (texto[i] != '\n') {
+            texto[j] = texto[i];
+            j++;
+        }
+    }
+    texto[j] = '\0';
+}
+
+
 int buscarPalabra(const char* cadena, const char* palabra) {
     int contador = 0;
     char* copia = strdup(cadena);  // Copia la cadena de texto original
