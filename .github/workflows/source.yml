@@ -1,0 +1,22 @@
+name: Pubicar codigo fuente
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish_source:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v2
+
+      - name: Comprimir código
+        run: zip -r source_code.zip .
+
+      - name: Publicar archivo ZIP
+        uses: actions/upload-artifact@v2
+        with:
+          name: Codigo publicado
+          path: source_code.zip
