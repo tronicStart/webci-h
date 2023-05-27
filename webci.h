@@ -9,7 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 4024
 #define V 200
 #define Q 50
 #define ERROR -1
@@ -33,6 +33,7 @@ struct Server {
     int addrlen;
     int error;
     int port;
+    int buffer_size;
     
 };
 
@@ -45,22 +46,90 @@ struct base_lite {
 };
 
 char buffer[BUFFER_SIZE] = {0};
+char buffer_2[BUFFER_SIZE][BUFFER_SIZE];
 
-void comprime_code(char *texto) {
-    int i, j;
-    int longitud = strlen(texto);
-
-    for (i = 0, j = 0; i < longitud; i++) {
-        if (texto[i] != '\n') {
-            texto[j] = texto[i];
-            j++;
-        }
-    }
-    texto[j] = '\0';
+char * get_response (){
+    
+    return buffer;
+    
 }
 
+char * get_response_2 (){
+    
+    int i,j;
+    
+    for(i = 0; i < BUFFER_SIZE; i++){
+        for(j = 0; j < BUFFER_SIZE; j++){
+            buffer_2[i][j] = buffer;
+        }
+    }
+    
+}
 
-int buscarPalabra(const char* cadena, const char* palabra) {
+void server_file_response(int client_socket, const char *content_type, const char *content) {
+    
+    char response[BUFFER_SIZE];
+    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %lu\n\n%s", content_type, strlen(content), content);
+    write(client_socket, response, strlen(response));
+    
+}
+
+int start_server_file (struct Server * server){
+    
+    server->opt = 1;
+    server->addrlen = sizeof(server->address);
+    
+    if ((server->server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("[Server] ");
+        return ERROR;
+    }
+    
+    if (setsockopt(server->server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &server->opt, sizeof(server->opt))) {
+        perror("[Server] ");
+        return ERROR;
+    }
+    
+    server->address.sin_family = AF_INET;
+    server->address.sin_addr.s_addr = INADDR_ANY;
+    server->address.sin_port = htons(server->port);
+    
+    if (bind(server->server_fd, (struct sockaddr *)&server->address, sizeof(server->address)) < 0) {
+        perror("[Server] ");
+        return ERROR;
+    }
+    
+    if (listen(server->server_fd, 3) < 0) {
+        perror("[Server] ");
+        return ERROR;
+    }
+    
+}
+
+int listen_server_file (struct Server * server, const char * archivo){
+    
+    if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t*)&server->addrlen)) < 0) {
+            perror("[Server] ");
+            return ERROR;
+        }
+        
+        server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
+        
+        FILE *file = fopen(archivo, "r");
+        if (file == NULL) {
+            perror("[Server] ");
+            return ERROR;
+        }
+
+        char html_content[server->buffer_size];
+        size_t html_size = fread(html_content, sizeof(char), server->buffer_size, file);
+        fclose(file);
+        
+        server_file_response(server->new_socket, "text/html", html_content);
+        printf("[Server]: Respuesta enviada\n");
+        close(server->new_socket);
+}
+
+int buscaPalabra(const char* cadena, const char* palabra) {
     int contador = 0;
     char* copia = strdup(cadena);  // Copia la cadena de texto original
 
@@ -68,14 +137,16 @@ int buscarPalabra(const char* cadena, const char* palabra) {
 
     while (token != NULL) {
         if (strcmp(token, palabra) == 0) {  // Compara la palabra actual con la palabra buscada
-            printf("\n\n\nSe encontro la palabra username\n\n\n");
             contador++;
         }
         token = strtok(NULL, " ");  // Obtiene el siguiente token
     }
 
     free(copia);  // Libera la memoria asignada a la copia de la cadena
-
+    
+    if(contador < 0){
+        return ERROR;
+    }
     return contador;
 }
 
@@ -155,7 +226,6 @@ int listen_server (struct Server * S, const char * response){
     }
     
     // Aceptar conexiones entrantes y manejarlas
-    //while(S->condition) {
         if ((S->new_socket = accept(S->server_fd, (struct sockaddr *)&S->address, (socklen_t*)&S->addrlen)) < 0) {
             perror("[Server] ");
             return S->error;
@@ -163,16 +233,17 @@ int listen_server (struct Server * S, const char * response){
 
         // Leer la solicitud HTTP entrante
         S->valread = read(S->new_socket, buffer, BUFFER_SIZE);
-        //printf("[Server]: Solicitud recibida:\n%s\n", buffer);
-        buscarPalabra(buffer,"username");
         // Enviar la respuesta HTTP al cliente
         write(S->new_socket, response, strlen(response));
         printf("[Server]: Respuesta enviada\n");
 
-        // Cerrar la conexión
         close(S->new_socket);
-        
-    //}
+    
+}
+
+void send_new_page (struct Server * S, const char * response){
+    
+    listen_server(&S,response);
     
 }
 
