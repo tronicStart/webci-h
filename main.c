@@ -1,18 +1,30 @@
-#include "webci.h"
+#include <webci.h>
 #include <sqlite3.h>
+#include <curl/curl.h>
 
 int main(){
     
-    struct Server Servidor;
+    struct Server servidor;
     
-    Servidor.port = 8090;
-    char * Code = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE html><html><head><title>Webci.h | iniciar sesion</title><style>body {background-color: blue;font-family: Arial, sans-serif;}.container {width: 300px;margin: 0 auto;margin-top: 100px;background-color: white;padding: 20px;border-radius: 5px;}h1 {text-align: center;}.form-group {margin-bottom: 20px;}.form-group label {display: block;margin-bottom: 5px;}.form-group input {width: 100%;padding: 10px;border: 1px solid lightgray;border-radius: 3px;}.form-group input[type=\"submit\"] {background-color: blue;color: white;cursor: pointer;}</style></head><body><div class=\"container\"><h1>Inicio de sesion</h1><form><div class=\"form-group\"><label for=\"username\">Usuario:</label><input type=\"text\" id=\"username\" name=\"username\" required></div><div class=\"form-group\"><label for=\"password\">Contraseña:</label><input type=\"password\" id=\"password\" name=\"password\" required></div><div class=\"form-group\"><input type=\"submit\" value=\"Iniciar sesión\"></div></form></div></body></html>";
+    char *page_2 = "http://localhost:8090/servicios.html";
+    char *main_page = "http://localhost:8090/index.html";
     
-    ini_server(&Servidor);
-    config_server(&Servidor);
+    servidor.port = 8090;
+    servidor.buffer_size = 4024;//No necesario
+    start_server_file(&servidor);
+    
     while(WEB_TRUE){
-        listen_server(&Servidor, Code);
+        listen_server_file(&servidor,"index.html");
+        split_lines(get_response());
+        if(search_words(get_response(), page_2) == WEB_OK){
+            while(WEB_TRUE){
+                listen_server_file(&servidor,"servicios.html");
+                split_lines(get_response());
+                if(search_words(get_response(),main_page) == WEB_OK){
+                    listen_server_file(&servidor,"index.html");
+                }
+            }
+        }
     }
-    
     return 0;
 }
