@@ -7,15 +7,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <netinet/in.h> 
+#include <curl/curl.h>
 
-#define BUFFER_SIZE 4024
+#define BUFFER_SIZE 4096
 #define V 200
 #define Q 50
 #define ERROR -1
 #define OK 0
 #define WEB_TRUE 1
 #define WEB_FALSE 0
+#define WEB_OK 1
+#define SMTP_TEXT 500
 
 struct data {
     
@@ -45,24 +48,78 @@ struct base_lite {
     
 };
 
+typedef struct {
+    
+    char smtp_url[V];
+    char user_smtp[V];
+    char password_smtp[V];
+    char mail_from[V];
+    char recipient[V];
+    char payload_text[SMTP_TEXT];
+    
+}smtp_email;
+
 char buffer[BUFFER_SIZE] = {0};
 char buffer_2[BUFFER_SIZE][BUFFER_SIZE];
+
+void split_lines(const char *text) {
+    
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+    while (line != NULL) {
+        printf("%s\n", line);
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+}
+
+int search_words(const char *text, const char *word) {
+    
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+    while (line != NULL) {
+        if (strstr(line, word) != NULL) {
+            return WEB_OK;
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+}
+
+int send_email(smtp_email *email){
+    
+    CURL *curl;
+    CURLcode res = CURLE_OK;
+    curl = curl_easy_init();
+    
+    if (curl){
+        
+        curl_easy_setopt(curl, CURLOPT_URL, email->smtp_url);
+        curl_easy_setopt(curl, CURLOPT_MAIL_FROM, email->mail_from);
+        struct curl_slist *recipients = NULL;
+        recipients = curl_slist_append(recipients, email->recipient);
+        curl_easy_setopt(curl, CURLOPT_MAIL_RCPT, recipients);
+        curl_easy_setopt(curl, CURLOPT_USERNAME, email->user_smtp);
+        curl_easy_setopt(curl, CURLOPT_PASSWORD, email->password_smtp);
+        curl_easy_setopt(curl, CURLOPT_READFUNCTION, NULL);
+        curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
+        curl_easy_setopt(curl, CURLOPT_READDATA, email->payload_text);
+        curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+        res = curl_easy_perform(curl);
+
+        if (res != CURLE_OK)
+            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
+
+        curl_slist_free_all(recipients);
+        curl_easy_cleanup(curl);
+    }
+    return (int)res;
+}
 
 char * get_response (){
     
     return buffer;
-    
-}
-
-char * get_response_2 (){
-    
-    int i,j;
-    
-    for(i = 0; i < BUFFER_SIZE; i++){
-        for(j = 0; j < BUFFER_SIZE; j++){
-            buffer_2[i][j] = buffer;
-        }
-    }
     
 }
 
@@ -131,18 +188,18 @@ int listen_server_file (struct Server * server, const char * archivo){
 
 int buscaPalabra(const char* cadena, const char* palabra) {
     int contador = 0;
-    char* copia = strdup(cadena);  // Copia la cadena de texto original
+    char* copia = strdup(cadena);
 
-    char* token = strtok(copia, " ");  // Divide la cadena en palabras utilizando el espacio como delimitador
+    char* token = strtok(copia, " ");
 
     while (token != NULL) {
-        if (strcmp(token, palabra) == 0) {  // Compara la palabra actual con la palabra buscada
+        if (strcmp(token, palabra) == 0) {
             contador++;
         }
-        token = strtok(NULL, " ");  // Obtiene el siguiente token
+        token = strtok(NULL, " ");
     }
 
-    free(copia);  // Libera la memoria asignada a la copia de la cadena
+    free(copia);
     
     if(contador < 0){
         return ERROR;
@@ -195,13 +252,11 @@ int config_server (struct Server * S){
     
     S->error = ERROR;
     
-    // Crear el socket
     if ((S->server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("[Server] ");
         return S->error;
     }
     
-    // Configurar opciones del socket
     if (setsockopt(S->server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &S->opt, sizeof(S->opt))) {
         perror("[Server] ");
         return S->error;
@@ -211,7 +266,6 @@ int config_server (struct Server * S){
     S->address.sin_addr.s_addr = INADDR_ANY;
     S->address.sin_port = htons(S->port);
     
-    // Asociar el socket a la dirección y puerto
     if (bind(S->server_fd, (struct sockaddr *)&S->address, sizeof(S->address)) < 0) {
         perror("[Server] ");
         return S->error;
@@ -219,31 +273,22 @@ int config_server (struct Server * S){
 }
 
 int listen_server (struct Server * S, const char * response){
-    // Escuchar por conexiones entrantes
+    
     if (listen(S->server_fd, 3) < 0) {
         perror("[Server] ");
         return S->error;
     }
     
-    // Aceptar conexiones entrantes y manejarlas
         if ((S->new_socket = accept(S->server_fd, (struct sockaddr *)&S->address, (socklen_t*)&S->addrlen)) < 0) {
             perror("[Server] ");
             return S->error;
         }
-
-        // Leer la solicitud HTTP entrante
+        
         S->valread = read(S->new_socket, buffer, BUFFER_SIZE);
-        // Enviar la respuesta HTTP al cliente
         write(S->new_socket, response, strlen(response));
         printf("[Server]: Respuesta enviada\n");
 
         close(S->new_socket);
-    
-}
-
-void send_new_page (struct Server * S, const char * response){
-    
-    listen_server(&S,response);
     
 }
 
@@ -307,21 +352,6 @@ int _server_html_ (const char * response, int PORT, struct data * Data){
         close(new_socket);
     }
     return 0;
-}
-
-int save_data_buffer_server (struct data * Data){
-    
-    FILE * dat = fopen(Data->File_name,"a");
-    
-    if(dat == NULL){
-        return -1;
-    }
-    
-    fprintf(dat,"%s\n",Data->data);
-    fclose(dat);
-    
-    return 0;
-    
 }
 
 #endif
