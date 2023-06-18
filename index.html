@@ -1,23 +1,43 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Page test the webci.h</title>
+<meta charset="UTF-8">
+  <title>Iniciar sesiòn | webci test cookies creation</title>
+  <link rel="stylesheet" type="text/css" href="styles.css">
+  <style>
+  body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+}
+
+form {
+  text-align: center;
+  margin-top: 20px;
+}
+
+input[type="text"] {
+  display: block;
+  margin: 0 auto;
+  margin-bottom: 10px;
+}
+
+input[type="submit"] {
+  display: block;
+  margin: 0 auto;
+}
+  </style>
 </head>
 <body>
-  <center>
-  <div id="page" class="pagess"></div>
-  <center>
-  <h1>Registro</h1>
-  <form>
-  <input type="text" name="User" placeholder="User">
-  <input type="password" name="pass" placeholder="password">
-  <input type="email" name="email" placeholder="Mail"><br>
-  <input type="submit" value="Enviar">
+  <h1>Iniciar sesiòn</h1>
+  <form method="post">
+    <input type="text" name="user" id="user" required>
+    <input type="submit" value="Enviar">
   </form>
-  </center>
-  <button><a href="servicios.html">iniciar sesion</a></button>
-  </center>
+  <button><a href="servicios.html">Crear</a></button>
 </body>
 </html>
