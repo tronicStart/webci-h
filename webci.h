@@ -6,11 +6,13 @@
 #include <sqlite3.h>
 #include <string.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h> 
 #include <curl/curl.h>
 
 #define BUFFER_SIZE 4096
+#define MAX_COOKIES 10
 #define V 200
 #define Q 50
 #define ERROR -1
@@ -24,6 +26,20 @@
 #define POST post
 #define _GET char * get
 #define GET get
+#define IMAGE_PNG_FILE "image/png"
+#define IMAGE_JPEG_FILE "image/jpeg"
+#define VIDEO_MP4_FILE "video/mp4"
+#define OCTET_STREAM_FILE "application/octet-stream"
+#define ANDROID_APP_FILE "application/vnd.android.package-archive"
+#define HAVE_FILE "Content-Length"
+#define IS_ACTIVE 200
+#define IS_NO_ACTIVE -200
+
+typedef unsigned char results;
+typedef char * PAGE_URL;
+typedef char * WEB_FILES;
+typedef char * String;
+typedef int array;
 
 struct Server {
     
@@ -35,6 +51,9 @@ struct Server {
     int error;
     int port;
     int buffer_size;
+    char cookie_time[30];
+    char cookie_file_name[V];
+    int cookie_active;
     
 };
 
@@ -49,24 +68,271 @@ typedef struct {
     
 }smtp_email;
 
+typedef struct {
+    
+    char current_date[20];
+    char hour[9];
+    
+}Date;
+
+typedef struct {
+    struct {
+        array range;
+        array Array[100];
+    }Int;
+    struct {
+        array range;
+        String Array[100];
+    }string;
+    struct {
+        array range;
+        results Array[100];
+    }Result;
+    struct {
+        array range;
+        PAGE_URL Array[100];
+    }Pages_url;
+    struct {
+        array range;
+        WEB_FILES Array[100];
+    }Web_files;
+    array i;
+} Array;
+
 char buffer[BUFFER_SIZE] = {0};
 char buffer_2[BUFFER_SIZE][BUFFER_SIZE];
 char * _post;
 char * _get;
+char cookie_value[30];
 
-int search_database(int start, const char *name, const *query, int (*callback)()){
+void cat_str(const char* texto1, const char* texto2, char* resultado) {
+    strcpy(resultado, texto1);
+    strcat(resultado, texto2);
+}
+
+void split_lines(const char *text) {
+    
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+
+    while (line != NULL) {
+        printf("%s\n", line);
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+}
+
+int search_words(const char *text, const char *word) {
+    
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+
+    while (line != NULL) {
+        if (strstr(line, word) != NULL) {
+            return WEB_OK;
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}
+
+int buscaPalabra(const char* cadena, const char* palabra) {
+    
+    int contador = 0;
+    char* copia = strdup(cadena);
+    char* token = strtok(copia, " ");
+
+    while (token != NULL) {
+        if (strcmp(token, palabra) == 0) {
+            contador++;
+        }
+        token = strtok(NULL, " ");
+    }
+
+    free(copia);
+    
+    if(contador < 0){
+        return ERROR;
+    }
+    return contador;
+}
+
+Array * array_int (Array * Array, ...){
+    array * Arra = malloc(Array->Int.range * sizeof(array));
+    va_list valist;
+    va_start(valist, Array->Int.range);
+    for(Array->i = 0; Array->i < Array->Int.range; Array->i++){
+        array x = va_arg(valist, array);
+        Arra[Array->i] = x;
+    }
+    va_end(valist);
+    for(Array->i = 0; Array->i < Array->Int.range; Array->i++){
+        Array->Int.Array[Array->i] = Arra[Array->i];
+    }
+    free(Arra);
+    return Array;
+}
+
+Array * array_results (Array * Array, ...){
+    array * Arra = malloc(Array->Result.range * sizeof(array));
+    va_list valist;
+    va_start(valist, Array->Int.range);
+    for(Array->i = 0; Array->i < Array->Result.range; Array->i++){
+        results x = va_arg(valist, results);
+        Arra[Array->i] = x;
+    }
+    va_end(valist);
+    for(Array->i = 0; Array->i < Array->Result.range; Array->i++){
+        Array->Result.Array[Array->i] = Arra[Array->i];
+    }
+    free(Arra);
+    return Array;
+}
+
+Array * array_web_files (Array * Array, ...){
+    array * Arra = malloc(Array->Web_files.range * sizeof(array));
+    va_list valist;
+    va_start(valist, Array->Web_files.range);
+    for(Array->i = 0; Array->i < Array->Web_files.range; Array->i++){
+        WEB_FILES x = va_arg(valist, WEB_FILES);
+        Arra[Array->i] = x;
+    }
+    va_end(valist);
+    for(Array->i = 0; Array->i < Array->Int.range; Array->i++){
+        Array->Web_files.Array[Array->i] = Arra[Array->i];
+    }
+    free(Arra);
+    return Array;
+}
+
+Array * array_page_url (Array * Array, ...){
+    array * Arra = malloc(Array->Pages_url.range * sizeof(array));
+    va_list valist;
+    va_start(valist, Array->Pages_url.range);
+    for(Array->i = 0; Array->i < Array->Pages_url.range; Array->i++){
+        PAGE_URL x = va_arg(valist, PAGE_URL);
+        Arra[Array->i] = x;
+    }
+    va_end(valist);
+    for(Array->i = 0; Array->i < Array->Pages_url.range; Array->i++){
+        Array->Pages_url.Array[Array->i] = Arra[Array->i];
+    }
+    free(Arra);
+    return Array;
+}
+
+Array * array_char (Array * Array, ...){
+    array * Arra = malloc(Array->string.range * sizeof(array));
+    va_list valist;
+    va_start(valist, Array->string.range);
+    for(Array->i = 0; Array->i < Array->string.range; Array->i++){
+        String x = va_arg(valist, String);
+        Arra[Array->i] = x;
+    }
+    va_end(valist);
+    for(Array->i = 0; Array->i < Array->string.range; Array->i++){
+        Array->Int.Array[Array->i] = Arra[Array->i];
+    }
+    free(Arra);
+    return Array;
+}
+
+void get_date (Date * date){
+    time_t tiempo;
+    struct tm *tm_info;
+    time(&tiempo);
+    tm_info = localtime(&tiempo);
+    strftime(date->current_date, 20, "%Y-%m-%d", tm_info);
+}
+
+void get_time(Date * date) {
+    time_t tiempo;
+    struct tm *tm_info;
+    time(&tiempo);
+    tm_info = localtime(&tiempo);
+    strftime(date->hour, 9, "%H:%M:%S", tm_info);
+}
+
+int create_base_data (const String name, const String create_table_query){
+    
+    sqlite3 *db;
+    char *error_message = 0;
+    
+    int result = sqlite3_open(name, &db);
+    
+    if (result != SQLITE_OK) {
+        printf("[Server]: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return WEB_ERROR;
+    }
+    
+    result = sqlite3_exec(db, create_table_query, 0, 0, &error_message);
+    
+    if (result != SQLITE_OK) {
+        printf("[Server]: %s\n", error_message);
+        sqlite3_free(error_message);
+        sqlite3_close(db);
+        return WEB_ERROR;
+    }
+    
+    sqlite3_close(db);
+    return OK;
+}
+
+int insert_database (const String name_base, int total_data, const String sql, String insert, ...){
+    
+    sqlite3 * db;
+    char * err_msg = 0;
+    int rc,i;
+    String chonps;
+    rc = sqlite3_open(name_base, &db);
+    if(rc != SQLITE_OK){
+        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        sqlite3_close(db);
+        return WEB_ERROR;
+    }
+    rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+    if (rc != SQLITE_OK ) {
+        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        return WEB_ERROR;
+    }
+    
+    char insert_query[100];
+    va_list args;
+    va_start(args,insert);
+    for (i = 0; i < total_data+1-1; i++){
+        String count = va_arg(args, String);
+        sprintf(insert_query, insert, count, chonps);
+    }
+    va_end(args);
+    printf("El contenido de insert_query es: %s\n",insert_query,_post);
+    rc = sqlite3_exec(db, insert_query, 0, 0, &err_msg);
+    if (rc != SQLITE_OK ) {
+        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        sqlite3_free(err_msg);
+        sqlite3_close(db);
+        return WEB_ERROR;
+    }
+    sqlite3_close(db);
+    return OK;
+}
+
+int search_database (const String name, const String query, int start, int (*callback)()){
     
     if (start != 0){
         sqlite3 *db;
         char *error_msg = 0;
         int rc = sqlite3_open(name, &db);
         if (rc != SQLITE_OK){
-            fprintf(stderr, "No se puede abrir la base de datos: %s\n", sqlite3_errmsg(db));
+            fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
             return ERROR;
         }
         rc = sqlite3_exec(db, query, callback, 0, &error_msg);
         if (rc != SQLITE_OK){
-            fprintf(stderr, "Error al seleccionar los datos: %s\n", error_msg);
+            fprintf(stderr, "[Server]: %s\n", error_msg);
             sqlite3_free(error_msg);
             sqlite3_close(db);
             return ERROR;
@@ -75,18 +341,53 @@ int search_database(int start, const char *name, const *query, int (*callback)()
     }
 }
 
-int save_response (const char * data){
-    
-    FILE * fp = fopen("data_response.txt","a");
-    
+int create_cookie (struct Server * server, const char * request, const char * data_cookie){
+    recv(server->valread, request, BUFFER_SIZE, 0);
+    time_t now = time(NULL);
+    struct tm* tm_info = localtime(&now);
+    char response[BUFFER_SIZE];
+    FILE * fp = fopen(server->cookie_file_name,"w");
     if(fp == NULL){
-        return ERROR;
+        perror("[Server] ");
+        return WEB_ERROR;
+    } else {
+        fprintf(fp, "%s", data_cookie);
     }
-    
-    fprintf(fp,"%s",data);
+    close(server->valread);
     fclose(fp);
-    
-    return WEB_OK;
+    server->cookie_active = IS_ACTIVE;
+    return IS_ACTIVE;
+}
+
+int remove_cookie (struct Server * server){
+    if(remove(server->cookie_file_name) == ERROR){
+        perror("[Server] ");
+        return WEB_ERROR;
+    }
+    server->cookie_active = IS_NO_ACTIVE;
+    return OK;
+}
+
+String read_cookie (struct Server * servidor, const char * request){
+     recv(servidor->valread, request, BUFFER_SIZE, 0);
+     time_t now = time(NULL);
+     struct tm* tm_info = localtime(&now);
+     strftime(servidor->cookie_time, sizeof(servidor->cookie_time), "%Y-%m-%d %H:%M:%S", tm_info);
+     char response[BUFFER_SIZE];
+     char data[BUFFER_SIZE];
+     FILE * cookie = fopen(servidor->cookie_file_name,"r");
+     if(cookie == NULL){
+         perror("[Server] ");
+         return WEB_ERROR;
+     }else{
+         while(feof(cookie) == 0){
+             fgets(data, BUFFER_SIZE, cookie);
+             snprintf(response, BUFFER_SIZE, "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n%s",data);
+         }
+     }
+     close(servidor->valread);
+     fclose(cookie);
+     return response;
 }
 
 char * get_POST(const char* text, const char* word, int ini,int end_index) {
@@ -112,13 +413,6 @@ char * get_POST(const char* text, const char* word, int ini,int end_index) {
     return WEB_ERROR;
 }
 
-void client_sockets (struct Server * server){
-    
-    server->client_address_length = sizeof(server->client_address);
-    server->client_socket = accept(server->server_fd, (struct sockaddr*)&server->client_address, &server->client_address_length);
-    
-}
-
 char * get_GET (const char* text, const char* word, int ini,int end_index, struct Server * server) {
     
     char* text_copy = strdup(text);
@@ -142,6 +436,7 @@ char * get_GET (const char* text, const char* word, int ini,int end_index, struc
                     return WEB_ERROR;
                 }
                 while ((bytesRead = fread(response, 1, sizeof(response), fp)) > 0) {
+                       //snprintf(response, BUFFER_SIZE, "Hello! This is a cookie.\nSet-Cookie: mycookie=%s\n", cookie_value);
                        send(server->client_socket, response, bytesRead, 0);
                 }
                 fclose(fp);
@@ -155,26 +450,40 @@ char * get_GET (const char* text, const char* word, int ini,int end_index, struc
     return WEB_ERROR;
 }
 
-void split_lines(const char *text) {
+char * get_platform (const char * text, int platform){
     
-    char *text_copy = strdup(text);
-    char *line = strtok(text_copy, "\n");
-
-    while (line != NULL) {
-        printf("%s\n", line);
-        line = strtok(NULL, "\n");
+    char * android = "\"Android\"";
+    char * linux = "\"Linux\"";
+    char * windows = "\"Windows\"";
+    char * word;
+    int ini = 1;
+    int end_index;
+    
+    if(platform == 7){
+        end_index = 7;
+        word = android;
     }
-    free(text_copy);
-}
-
-int search_words(const char *text, const char *word) {
-    
-    char *text_copy = strdup(text);
-    char *line = strtok(text_copy, "\n");
-
+    if(platform == 5){
+        end_index = 6;
+        word = linux;
+    }
+    if(platform == 8){
+        end_index = 7;
+        word = windows;
+    }
+    char* text_copy = strdup(text);
+    char* line = strtok(text_copy, "\n");
     while (line != NULL) {
-        if (strstr(line, word) != NULL) {
-            return WEB_OK;
+        char* word_position = strstr(line, word);
+        if (word_position != NULL) {
+            size_t start_index = word_position + ini - line;
+            if (start_index + end_index <= strlen(line)) {
+                char* result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                return result;
+            }
         }
         line = strtok(NULL, "\n");
     }
@@ -212,6 +521,98 @@ int send_email(smtp_email *email){
     return (int)res;
 }
 
+char * get_filename (const char * text, int end){
+    
+    char * word = "filename=\"";
+    int ini = 9;
+    int end_index = end;
+    char* text_copy = strdup(text);
+    char* line = strtok(text_copy, "\n");
+    while (line != NULL) {
+        char* word_position = strstr(line, word);
+        if (word_position != NULL) {
+            size_t start_index = word_position + ini - line;
+            if (start_index + end_index <= strlen(line)) {
+                char* result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                return result;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+    
+}
+
+char * get_type_file (const char * text){
+    
+    char * word = "Content-Type:";
+    int ini = 13;
+    int end_index;
+    char * text_copy = strdup(text);
+    char * line = strtok(text_copy, "\n");
+    while (line != NULL) {
+        char* word_position = strstr(line, word);
+        if (word_position != NULL) {
+            size_t start_index = word_position + ini - line;
+            if (start_index + end_index <= strlen(line)) {
+                char* result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                printf("La linea 307 sigue funcionando!\n");
+                return result;
+            }
+        }
+        line = strtok(NULL, "\n");
+        printf("La linea 312 sigue funcionando! line = %i\n\n",line);
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}
+
+char * get_Length_file (const char * text){
+    
+    char * word = "Content-Length: ";
+    int ini = 15;
+    int end_index = 100;
+    char * text_copy = strdup(text);
+    char * line = strtok(text_copy, "\n");
+    while (line != NULL) {
+        char* word_position = strstr(line, word);
+        if (word_position != NULL) {
+            size_t start_index = word_position + ini - line;
+            if (start_index + end_index <= strlen(line)) {
+                char* result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                return result;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}
+
+int save_response (const char * data){
+    
+    FILE * fp = fopen("data_response.txt","a");
+    
+    if(fp == NULL){
+        return WEB_ERROR;
+    }
+    
+    fprintf(fp,"%s",data);
+    fclose(fp);
+    
+    return WEB_OK;
+}
+
 char * get_response (){
     return buffer;
 }
@@ -222,6 +623,23 @@ void server_file_response(int client_socket, const char *content_type, const cha
     sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %lu\n\n%s", content_type, strlen(content), content);
     write(client_socket, response, strlen(response));
     
+}
+
+int send_response_inst (struct Server * server, const char * response){
+    
+    if (listen(server->server_fd, 3) < 0) {
+        perror("[Server] ");
+        return WEB_ERROR;
+    }
+        if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t*)&server->addrlen)) < 0) {
+            perror("[Server] ");
+            return WEB_ERROR;
+        }
+        char * response_2[BUFFER_SIZE];
+        server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
+        cat_str("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n",response,response_2);
+        write(server->new_socket, response_2, strlen(response));
+        close(server->new_socket);
 }
 
 int start_server_file (struct Server * server){
@@ -275,27 +693,6 @@ int listen_server_file (struct Server * server, const char * archivo){
         server_file_response(server->new_socket, "text/html", html_content);
         printf("[Server]: Respuesta enviada\n");
         close(server->new_socket);
-}
-
-int buscaPalabra(const char* cadena, const char* palabra) {
-    
-    int contador = 0;
-    char* copia = strdup(cadena);
-    char* token = strtok(copia, " ");
-
-    while (token != NULL) {
-        if (strcmp(token, palabra) == 0) {
-            contador++;
-        }
-        token = strtok(NULL, " ");
-    }
-
-    free(copia);
-    
-    if(contador < 0){
-        return ERROR;
-    }
-    return contador;
 }
 
 void ini_server (struct Server * S){
