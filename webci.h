@@ -217,7 +217,7 @@ Array *array_page_url(Array *Array, ...){
     return Array;
 }
 
-Array *array_char(Array *Array, ...){
+Array *array_String(Array *Array, ...){
     array *Arra = malloc(Array->string.range * sizeof(array));
     va_list valist;
     va_start(valist, Array->string.range);
@@ -649,7 +649,10 @@ int send_response_varic(struct Server *server, int total,const char *response, .
     if(total < 1){
         server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
         cat_str("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n", response, response_2);
+        server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
         write(server->new_socket, response_2, strlen(response_2));
+         close(server->new_socket);
+         return OK;
     } else {
         va_list args;
         va_start(args, response);
@@ -659,9 +662,10 @@ int send_response_varic(struct Server *server, int total,const char *response, .
         }
         va_end(args);
         cat_str("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n",response_2,response_total);
+        server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
         write(server->new_socket, response_total, strlen(response_total));
+        close(server->new_socket);
     }
-    close(server->new_socket);
 }
 
 int start_server_file(struct Server *server){
