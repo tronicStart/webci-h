@@ -21,6 +21,9 @@
 #define WEB_FALSE 0
 #define WEB_OK 1
 #define WEB_ERROR -5
+#define WEB_FILE_ERROR -7
+#define DATABASE_OK 2
+#define DATABASE_ERROR -2
 #define SMTP_TEXT 500
 #define _POST char *post
 #define POST post
@@ -34,8 +37,12 @@
 #define HAVE_FILE "Content-Length"
 #define IS_ACTIVE 200
 #define IS_NO_ACTIVE -200
+#define STATUS_OK 400
+#define STATUS_ERROR -400
+#define NO_INI_REQUEST -10
+#define INI_REQUEST 10
 
-typedef unsigned char results;
+typedef signed char results;
 typedef char *PAGE_URL;
 typedef char *WEB_FILES;
 typedef char *String;
@@ -49,7 +56,8 @@ struct Server{
     int addrlen;
     int error;
     int port;
-    int buffer_size;
+    int buffer_file;
+    int buffer_img;
     char cookie_time[30];
     char cookie_file_name[V];
     int cookie_active;
@@ -93,11 +101,35 @@ typedef struct{
     array i;
 } Array;
 
+typedef struct {
+    int (*open_)(const String , const String, const String);
+    String (*load_)();
+    void (*close_)();
+    int (*send_)();
+    int status;
+    String responses;
+    String data;
+    int ini;
+}request;
+
 char buffer[BUFFER_SIZE] = {0};
 char buffer_2[BUFFER_SIZE][BUFFER_SIZE];
 char *_post;
 char *_get;
 char cookie_value[30];
+String ob;
+String _get;
+String _post;
+int result_;
+String resq;
+PAGE_URL pages_request;
+String post_params_request;
+
+void server_file_response(int client_socket, const char *content_type, const char *content){
+    char response[BUFFER_SIZE];
+    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %lu\n\n%s", content_type, strlen(content), content);
+    write(client_socket, response, strlen(response));
+}
 
 void where(unsigned const char *condition, void (*func_1)(), void (*func_2)()){
     if (condition){
@@ -106,6 +138,16 @@ void where(unsigned const char *condition, void (*func_1)(), void (*func_2)()){
     else{
         func_2;
     }
+}
+
+int create_file(const String name, const String data, const String read){
+    FILE * fp = fopen(name,read);
+    if(fp == NULL){
+        return ERROR;
+    } 
+    fprintf(fp,"%s",data);
+    fclose(fp);
+    return OK;
 }
 
 void cat_str(const char *texto1, const char *texto2, char *resultado){
@@ -136,24 +178,7 @@ int search_words(const char *text, const char *word){
     return WEB_ERROR;
 }
 
-int buscaPalabra(const char *cadena, const char *palabra){
-    int contador = 0;
-    char *copia = strdup(cadena);
-    char *token = strtok(copia, " ");
-    while (token != NULL){
-        if (strcmp(token, palabra) == 0){
-            contador++;
-        }
-        token = strtok(NULL, " ");
-    }
-    free(copia);
-    if (contador < 0){
-        return ERROR;
-    }
-    return contador;
-}
-
-Array *array_int(Array *Array, ...){
+Array * create_array_int(Array *Array, ...){
     array *Arra = malloc(Array->Int.range * sizeof(array));
     va_list valist;
     va_start(valist, Array->Int.range);
@@ -169,7 +194,7 @@ Array *array_int(Array *Array, ...){
     return Array;
 }
 
-Array *array_results(Array *Array, ...){
+Array * create_array_results(Array *Array, ...){
     array *Arra = malloc(Array->Result.range * sizeof(array));
     va_list valist;
     va_start(valist, Array->Int.range);
@@ -185,7 +210,7 @@ Array *array_results(Array *Array, ...){
     return Array;
 }
 
-Array *array_web_files(Array *Array, ...){
+Array * create_array_WEBFILES(Array *Array, ...){
     array *Arra = malloc(Array->Web_files.range * sizeof(array));
     va_list valist;
     va_start(valist, Array->Web_files.range);
@@ -201,7 +226,7 @@ Array *array_web_files(Array *Array, ...){
     return Array;
 }
 
-Array *array_page_url(Array *Array, ...){
+Array * create_array_page_url(Array *Array, ...){
     array *Arra = malloc(Array->Pages_url.range * sizeof(array));
     va_list valist;
     va_start(valist, Array->Pages_url.range);
@@ -217,7 +242,7 @@ Array *array_page_url(Array *Array, ...){
     return Array;
 }
 
-Array *array_String(Array *Array, ...){
+Array * create_array_String(Array *Array, ...){
     array *Arra = malloc(Array->string.range * sizeof(array));
     va_list valist;
     va_start(valist, Array->string.range);
@@ -231,6 +256,97 @@ Array *array_String(Array *Array, ...){
     }
     free(Arra);
     return Array;
+}
+
+size_t write_callback(void *buffer, size_t size, size_t nmemb, void *userp) {
+    String data = (String)buffer;
+    ob = data;
+    return size * nmemb;
+}
+
+int open_ (const String solicitud, const String params_post, const String page_url){
+    _get ="GET";
+    _post = "POST";
+    if(strcmp(solicitud,_get) == 0){
+        result_ = INI_REQUEST;
+        resq = "GET";
+        pages_request = page_url;
+        return INI_REQUEST;
+    } else if(strcmp(solicitud,_post) == 0){
+        result_ = INI_REQUEST;
+        resq = "POST";
+        pages_request = page_url;
+        if(params_post == NULL){
+            return NO_INI_REQUEST;
+        }
+        post_params_request = params_post;
+        return INI_REQUEST;
+    }
+    return NO_INI_REQUEST;
+}
+
+String load_(){
+    return ob;
+}
+
+void close_ (){
+    _get = "GET";
+    _post = "POST";
+    pages_request = '\0';
+    post_params_request = '\0';
+    resq = '\0';
+    result_ = '\0';
+    ob = '\0';
+}
+
+int send_ (){
+    if(result_ == INI_REQUEST){
+        if(strcmp(resq,_get) == 0){
+            CURL *curl;
+            CURLcode res;
+            curl_global_init(CURL_GLOBAL_DEFAULT);
+            curl = curl_easy_init();
+            if (curl) {
+                curl_easy_setopt(curl, CURLOPT_URL, pages_request);
+                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                res = curl_easy_perform(curl);
+                if (res != CURLE_OK) {
+                    return STATUS_ERROR;
+                }
+                curl_easy_cleanup(curl);
+            }
+            curl_global_cleanup();
+            return STATUS_OK;
+        } else if(resq,_post){
+            CURL *curl;
+            CURLcode res;
+            curl_global_init(CURL_GLOBAL_DEFAULT);
+            curl = curl_easy_init();
+            if (curl) {
+                curl_easy_setopt(curl, CURLOPT_URL, pages_request);
+                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+                curl_easy_setopt(curl, CURLOPT_POSTFIELDS, post_params_request);
+                res = curl_easy_perform(curl);
+                if (res != CURLE_OK) {
+                    return STATUS_ERROR;
+                }
+                curl_easy_cleanup(curl);
+            }
+            curl_global_cleanup();
+            return STATUS_OK;
+        } else {
+            return STATUS_ERROR;
+        }
+    }
+    return STATUS_ERROR;
+}
+
+void prepare_request (request * request){
+    request->open_ = open_;
+    request->load_ = load_;
+    request->close_ = close_;
+    request->send_ = send_;
+    ob = "NULL";
 }
 
 void get_date(Date *date){
@@ -277,24 +393,24 @@ int time_cmp_func(Date *date, const String other_hour, void (*func)()){
     return WEB_FALSE;
 }
 
-int create_base_data(const String name, const String create_table_query){
+int create_database(const String name, const String create_table_query){
     sqlite3 *db;
     char *error_message = 0;
     int result = sqlite3_open(name, &db);
     if (result != SQLITE_OK){
         printf("[Server]: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return WEB_ERROR;
+        return DATABASE_ERROR;
     }
     result = sqlite3_exec(db, create_table_query, 0, 0, &error_message);
     if (result != SQLITE_OK){
         printf("[Server]: %s\n", error_message);
         sqlite3_free(error_message);
         sqlite3_close(db);
-        return WEB_ERROR;
+        return DATABASE_ERROR;
     }
     sqlite3_close(db);
-    return OK;
+    return DATABASE_OK;
 }
 
 int insert_database(const String name_base, int total_data, const String sql, String insert, ...){
@@ -306,14 +422,14 @@ int insert_database(const String name_base, int total_data, const String sql, St
     if (rc != SQLITE_OK){
         fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return WEB_ERROR;
+        return DATABASE_ERROR;
     }
     rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     if (rc != SQLITE_OK){
         fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
         sqlite3_free(err_msg);
         sqlite3_close(db);
-        return WEB_ERROR;
+        return DATABASE_ERROR;
     }
     char insert_query[100];
     va_list args;
@@ -328,10 +444,10 @@ int insert_database(const String name_base, int total_data, const String sql, St
         fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
         sqlite3_free(err_msg);
         sqlite3_close(db);
-        return WEB_ERROR;
+        return DATABASE_ERROR;
     }
     sqlite3_close(db);
-    return OK;
+    return DATABASE_OK;
 }
 
 int search_database(const String name, const String query, int start, int (*callback)()){
@@ -341,17 +457,62 @@ int search_database(const String name, const String query, int start, int (*call
         int rc = sqlite3_open(name, &db);
         if (rc != SQLITE_OK){
             fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
-            return ERROR;
+            return DATABASE_ERROR;
         }
         rc = sqlite3_exec(db, query, callback, 0, &error_msg);
         if (rc != SQLITE_OK){
             fprintf(stderr, "[Server]: %s\n", error_msg);
             sqlite3_free(error_msg);
             sqlite3_close(db);
-            return ERROR;
+            return DATABASE_ERROR;
         }
         sqlite3_close(db);
     }
+}
+
+int update_database (const String name, const String sql, int total_data, ...){
+    sqlite3 *db;
+    char *err_msg = 0;
+    String new_sql;
+    int i;
+    int rc = sqlite3_open(name, &db);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+        return DATABASE_ERROR;
+    }
+    va_list args;
+    va_start(args, sql);
+    for (i = 0; i < total_data; i++){
+        String count = va_arg(args, String);
+        sprintf(new_sql, sql, count);
+    }
+    va_end(args);
+    rc = sqlite3_exec(db, new_sql, 0, 0, &err_msg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "%s\n", err_msg);
+        sqlite3_free(err_msg);
+        return DATABASE_ERROR;
+    }
+    sqlite3_close(db);
+    return DATABASE_OK;
+}
+
+int delete_database (const String name, const String sql){
+    sqlite3 *db;
+    char *err_msg = 0;
+    int rc = sqlite3_open(name, &db);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        return DATABASE_ERROR;
+    }
+    rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "[Server]: %s\n", err_msg);
+        sqlite3_free(err_msg);
+        return DATABASE_ERROR;
+    }
+    sqlite3_close(db);
+    return DATABASE_OK;
 }
 
 int create_cookie(struct Server *server, const char *request, const char *data_cookie){
@@ -405,7 +566,7 @@ String read_cookie(struct Server *servidor, const char *request){
     return response;
 }
 
-char *get_POST(const char *text, const char *word, int ini, int end_index){
+char * post (const char *text, const char *word, int ini, int end_index){
     char *text_copy = strdup(text);
     char *line = strtok(text_copy, "\n");
     while (line != NULL){
@@ -426,7 +587,39 @@ char *get_POST(const char *text, const char *word, int ini, int end_index){
     return WEB_ERROR;
 }
 
-char *get_GET(const char *text, const char *word, int ini, int end_index, struct Server *server){
+/*int get_GET_IMG (struct Server * server, const String text, const String word, int end_index){
+    
+    char img_content[server->buffer_img];
+    size_t img_size;
+    int ini = 5;
+    
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+    while (line != NULL){
+        char *word_position = strstr(line, word);
+        if (word_position != NULL){
+            size_t start_index = word_position + ini - line;
+            if (start_index + end_index <= strlen(line)){
+                FILE * fp = fopen(word,"rb");
+                if(fp == NULL){
+                    return WEB_FILE_ERROR;
+                } else{
+                    //img_size = fread(img_content, sizeof(char), server->buffer_img, fp);
+                    server_file_response(server->valread, "text/html", word);
+                    fclose(fp);
+                    close(server->new_socket);
+                    printf("Img content: %s\n", word);
+                    return WEB_OK;
+                }
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}*/
+
+char * get(const char *text, const char *word, int ini, int end_index, struct Server *server){
     char *text_copy = strdup(text);
     char *line = strtok(text_copy, "\n");
     char response[BUFFER_SIZE];
@@ -459,7 +652,7 @@ char *get_GET(const char *text, const char *word, int ini, int end_index, struct
     return WEB_ERROR;
 }
 
-char *get_platform(const char *text, int platform){
+char *getPlatform(const char *text, int platform){
     char *android = "\"Android\"";
     char *linux = "\"Linux\"";
     char *windows = "\"Windows\"";
@@ -527,7 +720,7 @@ int send_email(smtp_email *email){
     return (int)res;
 }
 
-char *get_filename(const char *text, int end){
+char *getFilename(const char *text, int end){
     char *word = "filename=\"";
     int ini = 9;
     int end_index = end;
@@ -551,7 +744,7 @@ char *get_filename(const char *text, int end){
     return WEB_ERROR;
 }
 
-char *get_type_file(const char *text){
+char *getTypeFile(const char *text){
     char *word = "Content-Type:";
     int ini = 13;
     int end_index;
@@ -575,7 +768,7 @@ char *get_type_file(const char *text){
     return WEB_ERROR;
 }
 
-char *get_Length_file(const char *text){
+char *getLengthFile(const char *text){
     char *word = "Content-Length: ";
     int ini = 15;
     int end_index = 100;
@@ -613,13 +806,7 @@ char *get_response(){
     return buffer;
 }
 
-void server_file_response(int client_socket, const char *content_type, const char *content){
-    char response[BUFFER_SIZE];
-    sprintf(response, "HTTP/1.1 200 OK\nContent-Type: %s\nContent-Length: %lu\n\n%s", content_type, strlen(content), content);
-    write(client_socket, response, strlen(response));
-}
-
-int send_response_inst(struct Server *server, const char *response){
+int send_simple_response(struct Server *server, const char *response){
     if (listen(server->server_fd, 3) < 0){
         perror("[Server] ");
         return WEB_ERROR;
@@ -635,7 +822,7 @@ int send_response_inst(struct Server *server, const char *response){
     close(server->new_socket);
 }
 
-int send_response_varic(struct Server *server, int total,const char *response, ...){
+int send_agrs_response(struct Server *server, int total,const char *response, ...){
     int i;
     if (listen(server->server_fd, 3) < 0){
         perror("[Server] ");
@@ -668,7 +855,56 @@ int send_response_varic(struct Server *server, int total,const char *response, .
     }
 }
 
-int start_server_file(struct Server *server){
+int send_response_server_js(struct Server *server, const char *archivo){
+    char response_2[BUFFER_SIZE];
+    const String js = "<script>window.onerror = function(message, source, lineno, colno, error) {let errorDiv = document.getElementById('error-log');if (errorDiv) {errorDiv.innerHTML += '<strong>Error:</strong> ' + message + '<br>';}};</script><div id=\"error-log\"></div>";
+    if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
+        perror("[Server] ");
+        return ERROR;
+    }
+    server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
+    FILE *file = fopen(archivo, "r");
+    if (file == NULL){
+        perror("[Server] ");
+        return ERROR;
+    }
+    char html_content[server->buffer_file];
+    size_t html_size = fread(html_content, sizeof(char), server->buffer_file, file);
+    cat_str(js,html_content,response_2);
+    fclose(file);
+    server_file_response(server->new_socket, "text/html", response_2);
+    close(server->new_socket);
+}
+
+/*int listen_server_varic(struct Server *server, const char *archivo, int total, ...){
+    int i;
+    if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
+        perror("[Server] ");
+        return ERROR;
+    }
+    server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
+    FILE *file = fopen(archivo, "r");
+    if (file == NULL){
+        perror("[Server] ");
+        return ERROR;
+    }
+    char html_content[server->buffer_file];
+    size_t html_size = fread(html_content, sizeof(char), server->buffer_file, file);
+    fclose(file);
+    va_list args;
+    va_start(args, html_content);
+    char response_2[BUFFER_SIZE];
+    for (i = 0; i < total + 1 - 1; i++){
+          String count = va_arg(args, String);
+          sprintf(response_2, html_content, count);
+     }
+    va_end(args);
+    server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
+    server_file_response(server->new_socket, "text/html", response_2);
+    close(server->new_socket);
+}*/
+
+int open_server(struct Server *server){
     server->opt = 1;
     server->addrlen = sizeof(server->address);
     if ((server->server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
@@ -692,7 +928,7 @@ int start_server_file(struct Server *server){
     }
 }
 
-int listen_server_file(struct Server *server, const char *archivo){
+int send_response_server (struct Server *server, const char *archivo){
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
         perror("[Server] ");
         return ERROR;
@@ -703,21 +939,20 @@ int listen_server_file(struct Server *server, const char *archivo){
         perror("[Server] ");
         return ERROR;
     }
-    char html_content[server->buffer_size];
-    size_t html_size = fread(html_content, sizeof(char), server->buffer_size, file);
+    char html_content[server->buffer_file];
+    size_t html_size = fread(html_content, sizeof(char), server->buffer_file, file);
     fclose(file);
     server_file_response(server->new_socket, "text/html", html_content);
-    printf("[Server]: Respuesta enviada\n");
     close(server->new_socket);
 }
 
-void ini_server(struct Server *S){
+void ini_simple_server(struct Server *S){
     S->opt = 1;
     S->addrlen = sizeof(S->address);
     S->error = OK;
 }
 
-int config_server(struct Server *S){
+int config_simple_server(struct Server *S){
     S->error = ERROR;
     if ((S->server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
         perror("[Server] ");
@@ -736,7 +971,7 @@ int config_server(struct Server *S){
     }
 }
 
-int listen_server(struct Server *S, const char *response){
+int send_response_simple_server(struct Server *S, const char *response){
     if (listen(S->server_fd, 3) < 0){
         perror("[Server] ");
         return S->error;
