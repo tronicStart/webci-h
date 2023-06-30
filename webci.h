@@ -107,9 +107,7 @@ typedef struct {
     void (*close_)();
     int (*send_)();
     int status;
-    String responses;
     String data;
-    int ini;
 }request;
 
 char buffer[BUFFER_SIZE] = {0};
@@ -398,13 +396,13 @@ int create_database(const String name, const String create_table_query){
     char *error_message = 0;
     int result = sqlite3_open(name, &db);
     if (result != SQLITE_OK){
-        printf("[Server]: %s\n", sqlite3_errmsg(db));
+        printf("%s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return DATABASE_ERROR;
     }
     result = sqlite3_exec(db, create_table_query, 0, 0, &error_message);
     if (result != SQLITE_OK){
-        printf("[Server]: %s\n", error_message);
+        printf("%s\n", error_message);
         sqlite3_free(error_message);
         sqlite3_close(db);
         return DATABASE_ERROR;
@@ -420,13 +418,13 @@ int insert_database(const String name_base, int total_data, const String sql, St
     String chonps;
     rc = sqlite3_open(name_base, &db);
     if (rc != SQLITE_OK){
-        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return DATABASE_ERROR;
     }
     rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     if (rc != SQLITE_OK){
-        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         sqlite3_free(err_msg);
         sqlite3_close(db);
         return DATABASE_ERROR;
@@ -441,7 +439,7 @@ int insert_database(const String name_base, int total_data, const String sql, St
     va_end(args);
     rc = sqlite3_exec(db, insert_query, 0, 0, &err_msg);
     if (rc != SQLITE_OK){
-        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         sqlite3_free(err_msg);
         sqlite3_close(db);
         return DATABASE_ERROR;
@@ -456,12 +454,12 @@ int search_database(const String name, const String query, int start, int (*call
         char *error_msg = 0;
         int rc = sqlite3_open(name, &db);
         if (rc != SQLITE_OK){
-            fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+            fprintf(stderr, "%s\n", sqlite3_errmsg(db));
             return DATABASE_ERROR;
         }
         rc = sqlite3_exec(db, query, callback, 0, &error_msg);
         if (rc != SQLITE_OK){
-            fprintf(stderr, "[Server]: %s\n", error_msg);
+            fprintf(stderr, "%s\n", error_msg);
             sqlite3_free(error_msg);
             sqlite3_close(db);
             return DATABASE_ERROR;
@@ -502,12 +500,12 @@ int delete_database (const String name, const String sql){
     char *err_msg = 0;
     int rc = sqlite3_open(name, &db);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "[Server]: %s\n", sqlite3_errmsg(db));
+        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         return DATABASE_ERROR;
     }
     rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
     if (rc != SQLITE_OK) {
-        fprintf(stderr, "[Server]: %s\n", err_msg);
+        fprintf(stderr, "%s\n", err_msg);
         sqlite3_free(err_msg);
         return DATABASE_ERROR;
     }
@@ -522,7 +520,7 @@ int create_cookie(struct Server *server, const char *request, const char *data_c
     char response[BUFFER_SIZE];
     FILE *fp = fopen(server->cookie_file_name, "w");
     if (fp == NULL){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     else{
@@ -536,7 +534,7 @@ int create_cookie(struct Server *server, const char *request, const char *data_c
 
 int remove_cookie(struct Server *server){
     if (remove(server->cookie_file_name) == ERROR){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     server->cookie_active = IS_NO_ACTIVE;
@@ -552,7 +550,7 @@ String read_cookie(struct Server *servidor, const char *request){
     char data[BUFFER_SIZE];
     FILE *cookie = fopen(servidor->cookie_file_name, "r");
     if (cookie == NULL){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     else{
@@ -696,7 +694,6 @@ int send_email(smtp_email *email){
     CURL *curl;
     CURLcode res = CURLE_OK;
     curl = curl_easy_init();
-
     if (curl){
         curl_easy_setopt(curl, CURLOPT_URL, email->smtp_url);
         curl_easy_setopt(curl, CURLOPT_MAIL_FROM, email->mail_from);
@@ -710,20 +707,18 @@ int send_email(smtp_email *email){
         curl_easy_setopt(curl, CURLOPT_READDATA, email->payload_text);
         curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
         res = curl_easy_perform(curl);
-
         if (res != CURLE_OK)
-            fprintf(stderr, "[Server]: curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-
+            fprintf(stderr, "%s\n", curl_easy_strerror(res));
+            
         curl_slist_free_all(recipients);
         curl_easy_cleanup(curl);
     }
     return (int)res;
 }
 
-char *getFilename(const char *text, int end){
+char *getFileName(const char *text, int end_index){
     char *word = "filename=\"";
     int ini = 9;
-    int end_index = end;
     char *text_copy = strdup(text);
     char *line = strtok(text_copy, "\n");
     while (line != NULL){
@@ -808,11 +803,11 @@ char *get_response(){
 
 int send_simple_response(struct Server *server, const char *response){
     if (listen(server->server_fd, 3) < 0){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     char *response_2[BUFFER_SIZE];
@@ -822,14 +817,14 @@ int send_simple_response(struct Server *server, const char *response){
     close(server->new_socket);
 }
 
-int send_agrs_response(struct Server *server, int total,const char *response, ...){
+int send_args_response(struct Server *server, int total,const char *response, ...){
     int i;
     if (listen(server->server_fd, 3) < 0){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return WEB_ERROR;
     }
     char *response_2[BUFFER_SIZE], response_total[BUFFER_SIZE];
@@ -855,17 +850,17 @@ int send_agrs_response(struct Server *server, int total,const char *response, ..
     }
 }
 
-int send_response_server_js(struct Server *server, const char *archivo){
+int send_response_server_view_js(struct Server *server, const char *archivo){
     char response_2[BUFFER_SIZE];
     const String js = "<script>window.onerror = function(message, source, lineno, colno, error) {let errorDiv = document.getElementById('error-log');if (errorDiv) {errorDiv.innerHTML += '<strong>Error:</strong> ' + message + '<br>';}};</script><div id=\"error-log\"></div>";
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
     FILE *file = fopen(archivo, "r");
     if (file == NULL){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     char html_content[server->buffer_file];
@@ -879,13 +874,13 @@ int send_response_server_js(struct Server *server, const char *archivo){
 /*int listen_server_varic(struct Server *server, const char *archivo, int total, ...){
     int i;
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
     FILE *file = fopen(archivo, "r");
     if (file == NULL){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     char html_content[server->buffer_file];
@@ -908,35 +903,35 @@ int open_server(struct Server *server){
     server->opt = 1;
     server->addrlen = sizeof(server->address);
     if ((server->server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     if (setsockopt(server->server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &server->opt, sizeof(server->opt))){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     server->address.sin_family = AF_INET;
     server->address.sin_addr.s_addr = INADDR_ANY;
     server->address.sin_port = htons(server->port);
     if (bind(server->server_fd, (struct sockaddr *)&server->address, sizeof(server->address)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     if (listen(server->server_fd, 3) < 0){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
 }
 
 int send_response_server (struct Server *server, const char *archivo){
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
     FILE *file = fopen(archivo, "r");
     if (file == NULL){
-        perror("[Server] ");
+        perror("  ");
         return ERROR;
     }
     char html_content[server->buffer_file];
@@ -955,34 +950,34 @@ void ini_simple_server(struct Server *S){
 int config_simple_server(struct Server *S){
     S->error = ERROR;
     if ((S->server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0){
-        perror("[Server] ");
+        perror("  ");
         return S->error;
     }
     if (setsockopt(S->server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &S->opt, sizeof(S->opt))){
-        perror("[Server] ");
+        perror("  ");
         return S->error;
     }
     S->address.sin_family = AF_INET;
     S->address.sin_addr.s_addr = INADDR_ANY;
     S->address.sin_port = htons(S->port);
     if (bind(S->server_fd, (struct sockaddr *)&S->address, sizeof(S->address)) < 0){
-        perror("[Server] ");
+        perror("  ");
         return S->error;
     }
 }
 
 int send_response_simple_server(struct Server *S, const char *response){
     if (listen(S->server_fd, 3) < 0){
-        perror("[Server] ");
+        perror("  ");
         return S->error;
     }
     if ((S->new_socket = accept(S->server_fd, (struct sockaddr *)&S->address, (socklen_t *)&S->addrlen)) < 0){
-        perror("[Server] ");
+        perror("");
         return S->error;
     }
     S->valread = read(S->new_socket, buffer, BUFFER_SIZE);
     write(S->new_socket, response, strlen(response));
-    printf("[Server]: Respuesta enviada\n");
+    printf("Respuesta enviada\n");
     close(S->new_socket);
 }
 #endif
