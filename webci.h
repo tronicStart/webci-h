@@ -35,6 +35,8 @@
 #define OCTET_STREAM_FILE "application/octet-stream"
 #define ANDROID_APP_FILE "application/vnd.android.package-archive"
 #define HAVE_FILE "Content-Length"
+#define ERROR_LENGTH_STRINGS_UP 12
+#define ERROR_LENGTH_STRINGS_DOWN -12
 #define IS_ACTIVE 200
 #define IS_NO_ACTIVE -200
 #define STATUS_OK 400
@@ -109,6 +111,16 @@ typedef struct {
     int status;
     String data;
 }request;
+
+struct files {
+    String name_file;
+    String type_file;
+    String length_file;
+    int status_file;
+    int len_namefile;
+    int len_file;
+    int len_typefile;
+};
 
 char buffer[BUFFER_SIZE] = {0};
 char buffer_2[BUFFER_SIZE][BUFFER_SIZE];
@@ -538,7 +550,7 @@ int remove_cookie(struct Server *server){
         return WEB_ERROR;
     }
     server->cookie_active = IS_NO_ACTIVE;
-    return OK;
+    return IS_NO_ACTIVE;
 }
 
 String read_cookie(struct Server *servidor, const char *request){
@@ -716,7 +728,32 @@ int send_email(smtp_email *email){
     return (int)res;
 }
 
-char *getFileName(const char *text, int end_index){
+int getLengthNameFile (struct files * f, const String text){
+    char *word = "filename=\"";
+    int ini = 9;
+    int end_index = 50;
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+    while (line != NULL){
+        char *word_position = strstr(line, word);
+        if (word_position != NULL){
+            size_t start_index = word_position + ini - line;
+            if (start_index <= strlen(line)){
+                char *result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                f->len_namefile = strlen(result);
+                return WEB_OK;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}
+
+char *getFileName(struct files * f, const char *text, int end_index){
     char *word = "filename=\"";
     int ini = 9;
     char *text_copy = strdup(text);
@@ -730,7 +767,16 @@ char *getFileName(const char *text, int end_index){
                 strncpy(result, line + start_index, end_index);
                 result[end_index] = '\0';
                 free(text_copy);
-                return result;
+                f->len_namefile = strlen(result);
+                if(f->len_namefile > end_index){
+                    f->status_file = ERROR_LENGTH_STRINGS_UP;
+                    return ERROR_LENGTH_STRINGS_UP;
+                } else if(f->len_namefile < end_index){
+                    f->status_file = ERROR_LENGTH_STRINGS_DOWN;
+                    return ERROR_LENGTH_STRINGS_DOWN;
+                }
+                f->name_file = result;
+                return WEB_OK;
             }
         }
         line = strtok(NULL, "\n");
@@ -739,10 +785,34 @@ char *getFileName(const char *text, int end_index){
     return WEB_ERROR;
 }
 
-char *getTypeFile(const char *text){
+int getLengthTypeFile (struct files * f, const String text){
+    char *word = "Content-Type: ";
+    int ini = 15;
+    int end_index = 10;
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+    while (line != NULL){
+        char *word_position = strstr(line, word);
+        if (word_position != NULL){
+            size_t start_index = word_position + ini - line;
+            if (start_index <= strlen(line)){
+                char *result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                f->len_typefile = strlen(result);
+                return WEB_OK;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}
+
+char *getTypeFile(struct files * f, const char *text, int end_index){
     char *word = "Content-Type:";
     int ini = 13;
-    int end_index;
     char *text_copy = strdup(text);
     char *line = strtok(text_copy, "\n");
     while (line != NULL){
@@ -754,7 +824,16 @@ char *getTypeFile(const char *text){
                 strncpy(result, line + start_index, end_index);
                 result[end_index] = '\0';
                 free(text_copy);
-                return result;
+                f->len_typefile = strlen(result);
+                if(f->len_typefile > end_index){
+                    f->status_file = ERROR_LENGTH_STRINGS_UP;
+                    return ERROR_LENGTH_STRINGS_UP;
+                } else if(f->len_typefile < end_index){
+                    f->status_file = ERROR_LENGTH_STRINGS_DOWN;
+                    return ERROR_LENGTH_STRINGS_DOWN;
+                }
+                f->type_file = result;
+                return WEB_OK;
             }
         }
         line = strtok(NULL, "\n");
@@ -763,10 +842,34 @@ char *getTypeFile(const char *text){
     return WEB_ERROR;
 }
 
-char *getLengthFile(const char *text){
+int getLengthStringFile (struct files * f, const String text){
     char *word = "Content-Length: ";
     int ini = 15;
-    int end_index = 100;
+    int end_index = 10;
+    char *text_copy = strdup(text);
+    char *line = strtok(text_copy, "\n");
+    while (line != NULL){
+        char *word_position = strstr(line, word);
+        if (word_position != NULL){
+            size_t start_index = word_position + ini - line;
+            if (start_index <= strlen(line)){
+                char *result = malloc(end_index + 1);
+                strncpy(result, line + start_index, end_index);
+                result[end_index] = '\0';
+                free(text_copy);
+                f->len_file = strlen(result);
+                return WEB_OK;
+            }
+        }
+        line = strtok(NULL, "\n");
+    }
+    free(text_copy);
+    return WEB_ERROR;
+}
+
+char *getLengthFile(struct files * f, const char *text, int end_index){
+    char *word = "Content-Length: ";
+    int ini = 15;
     char *text_copy = strdup(text);
     char *line = strtok(text_copy, "\n");
     while (line != NULL){
@@ -778,7 +881,16 @@ char *getLengthFile(const char *text){
                 strncpy(result, line + start_index, end_index);
                 result[end_index] = '\0';
                 free(text_copy);
-                return result;
+                f->len_file = strlen(result);
+                if(f->len_file > end_index){
+                    f->status_file = ERROR_LENGTH_STRINGS_UP;
+                    return ERROR_LENGTH_STRINGS_UP;
+                } else if(f->len_file < end_index){
+                    f->status_file = ERROR_LENGTH_STRINGS_DOWN;
+                    return ERROR_LENGTH_STRINGS_DOWN;
+                }
+                f->length_file = result;
+                return WEB_OK;
             }
         }
         line = strtok(NULL, "\n");
@@ -786,6 +898,10 @@ char *getLengthFile(const char *text){
     free(text_copy);
     return WEB_ERROR;
 }
+
+/*int save_file (struct files * f){
+    
+}*/
 
 int save_response(const char *data){
     FILE *fp = fopen("data_response.txt", "a");
