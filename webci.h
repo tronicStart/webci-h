@@ -10,39 +10,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <curl/curl.h>
-
-#define BUFFER_SIZE 4096
-#define MAX_COOKIES 10
-#define V 200
-#define Q 50
-#define ERROR -1
-#define OK 2
-#define WEB_TRUE 1
-#define WEB_FALSE 0
-#define WEB_OK 1
-#define WEB_ERROR -5
-#define WEB_FILE_ERROR -7
-#define DATABASE_OK 2
-#define DATABASE_ERROR -2
-#define SMTP_TEXT 500
-#define _POST char *post
-#define POST post
-#define _GET char *get
-#define GET get
-#define IMAGE_PNG_FILE "image/png"
-#define IMAGE_JPEG_FILE "image/jpeg"
-#define VIDEO_MP4_FILE "video/mp4"
-#define OCTET_STREAM_FILE "application/octet-stream"
-#define ANDROID_APP_FILE "application/vnd.android.package-archive"
-#define HAVE_FILE "Content-Length"
-#define ERROR_LENGTH_STRINGS_UP 12
-#define ERROR_LENGTH_STRINGS_DOWN -12
-#define IS_ACTIVE 200
-#define IS_NO_ACTIVE -200
-#define STATUS_OK 400
-#define STATUS_ERROR -400
-#define NO_INI_REQUEST -10
-#define INI_REQUEST 10
+#include "webci_def.h"
 
 typedef signed char results;
 typedef char *PAGE_URL;
@@ -122,6 +90,124 @@ struct files {
     int len_typefile;
 };
 
+typedef struct {
+    void (*title)(const String);
+    void (*center_o)();
+    void (*center_c)();
+    void (*h1)(const String, const String);
+    void (*h2)(const String, const String);
+    void (*h3)(const String, const String);
+    void (*h4)(const String, const String);
+    void (*h5)(const String, const String);
+    void (*h6)(const String, const String);
+    void (*button)(const String, const String);
+    void (*script)(const String const String);
+    //nuevos
+    void (*div)(const String);
+    void (*div_o)(const String);
+    void (*div_c)();
+    void (*body_o)();
+    void (*body_c)();
+    void (*body)();
+    void (*head_o)();
+    void (*head_c)();
+    void (*head)();
+    void (*img)();
+    String src;
+    String alt;
+    void (*a)();
+    String href;
+    void (*section_o)();
+    void (*section_c)();
+    void (*section)();
+    void (*article_o)();
+    void (*arcticle_c)();
+    void (*arcticle)();
+    void (*header_o)();
+    void (*header_c)();
+    void (*header)();
+    void (*style)(const String);
+    void (*footer)();
+    void (*footer_o)();
+    void (*footer_c)();
+    void (*video)();
+    String source;
+    void (*form)();
+    void (*form_o)();
+    void (*form_c)();
+    String method;
+    String action;
+    String enctype;
+    void (*input)();
+    String type;
+    String name;
+    void (*meta)();
+    String charset;
+    void (*link)();
+    void (*aside)();
+    void (*hr)();
+    void (*br)();
+    void (*pre)();
+    void (*center)();
+    void (*textarea)();
+    void (*blockquote)();
+    void (*ol)();
+    void (*ol_o)();
+    void (*ol_c)();
+    void (*ul)();
+    void (*ul_o)();
+    void (*ul_c)();
+    void (*li)();
+    void (*li_o)();
+    void (*li_c)();
+    void (*dl)();
+    void (*dl_o)();
+    void (*dl_c)();
+    void (*dt)();
+    void (*dt_o)();
+    void (*dt_c)();
+    void (*dd)();
+    void (*dd_o)();
+    void (*dd_c)();
+    void (*figure)();
+    void (*figure_o)();
+    void (*figure_c)();
+    String span;
+    void (*small)();
+    void (*cite)();
+    void (*sub)();
+    void (*sup)();
+    void (*mark)();
+    void (*iframe)();
+    void (*embed)();
+    void (*audio)();
+    void (*table)();
+    void (*table_o)();
+    void (*table_c)();
+    void (*tbody)();
+    void (*tbody_o)();
+    void (*tbody_c)();
+    void (*thead)();
+    void (*thead_o)();
+    void (*thead_c)();
+    void (*tfoot)();
+    void (*tfoot_o)();
+    void (*tfoot_c)();
+    void (*tr)();
+    void (*td)();
+    void (*th)();
+    void (*label)();
+    void (*select)();
+    void (*select_o)();
+    void (*select_c)();
+    void (*option)();
+    void (*option_o)();
+    void (*option_c)();
+    void (*caption)();
+    void (*p)(const String, const String);
+    int (*send)(struct Server *);
+}html;
+
 char buffer[BUFFER_SIZE] = {0};
 char buffer_2[BUFFER_SIZE][BUFFER_SIZE];
 char *_post;
@@ -134,6 +220,772 @@ int result_;
 String resq;
 PAGE_URL pages_request;
 String post_params_request;
+static char true_html[BUFFER_SIZE] = " ";
+static char result_html[BUFFER_SIZE] = "<html>";
+static char _hh[BUFFER_SIZE];
+static char total_2[BUFFER_SIZE];
+static char total_html[BUFFER_SIZE];
+
+void cat_str(const String texto1, const String texto2, String resultado){
+    strcpy(resultado, texto1);
+    strcat(resultado, texto2);
+}
+
+static void _title (const String title){
+    char temp[HTML_LONG];
+    cat_str("<title>",title, temp);
+    cat_str(temp,"</title>",result_html);
+    cat_str(result_html,"",true_html);
+}
+
+static void _center_open (){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    cat_str("<center>","",temp);
+    cat_str(temp,"",temp_2);
+    cat_str(true_html,"",temp_3);
+    cat_str(temp_2,"",result_html);
+    cat_str(temp_3,result_html,true_html);
+}
+
+static void _center_close (){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    cat_str("","",temp);
+    cat_str(temp,"</center>",temp_2);
+    cat_str(true_html,"",temp_3);
+    cat_str(temp_2,"",result_html);
+    cat_str(temp_3,result_html,true_html);
+}
+/*Etiquetas del body*/
+static void _h1 (const String attributes, const String h1){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<h1>",h1,temp);
+        cat_str(temp,"</h1>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<h1 ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,h1,temp_5);
+        cat_str(temp_5,"</h1>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _h2 (const String attributes, const String h2){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<h2>",h2,temp);
+        cat_str(temp,"</h2>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<h2 ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,h2,temp_5);
+        cat_str(temp_5,"</h2>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _h3 (const String attributes, const String h3){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<h3>",h3,temp);
+        cat_str(temp,"</h3>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<h3 ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,h3,temp_5);
+        cat_str(temp_5,"</h3>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _h4 (const String attributes, const String h4){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<h4>",h4,temp);
+        cat_str(temp,"</h4>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<h4 ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,h4,temp_5);
+        cat_str(temp_5,"</h4>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _h5 (const String attributes, const String h5){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<h5>",h5,temp);
+        cat_str(temp,"</h5>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<h5 ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,h5,temp_5);
+        cat_str(temp_5,"</h5>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _h6 (const String attributes, const String h6){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<h6>",h6,temp);
+        cat_str(temp,"</h6>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<h6 ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,h6,temp_5);
+        cat_str(temp_5,"</h6>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _p (const String attributes, const String p){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<p>",p,temp);
+        cat_str(temp,"</p>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<p ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,p,temp_5);
+        cat_str(temp_5,"</p>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _button (const String attributes, const String button){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<button>",button,temp);
+        cat_str(temp,"</button>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<button ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,button,temp_5);
+        cat_str(temp_5,"</button>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _script (const String attributes, const String script){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<script>",script,temp);
+        cat_str(temp,"</script>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<script ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,script,temp_5);
+        cat_str(temp_5,"</script>",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+/*Nuevas etiquetas html*/
+static void _style (const String style){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    cat_str("<style>",style,temp);
+    cat_str(temp,"</style>",temp_2);
+    cat_str(true_html,"",temp_3);
+    cat_str(temp_2,"",result_html);
+    cat_str(temp_3,result_html,true_html);
+}
+
+static void _div (const String div){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    cat_str("<div>",div,temp);
+    cat_str(temp,"</div>",temp_2);
+    cat_str(true_html,"",temp_3);
+    cat_str(temp_2,"",result_html);
+    cat_str(temp_3,result_html,true_html);
+}
+
+static void _div_o (const String attributes){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    char temp_4[HTML_LONG];
+    char temp_5[HTML_LONG];
+    if(attributes == NULL){
+        cat_str("<div>","",temp);
+        cat_str(temp,"",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    } else {
+        cat_str("<div ",attributes,temp_4);
+        cat_str(temp_4,">",temp);
+        cat_str(temp,"",temp_2);
+        cat_str(true_html,"",temp_3);
+        cat_str(temp_2,"",result_html);
+        cat_str(temp_3,result_html,true_html);
+    }
+}
+
+static void _div_c (){
+    char temp[HTML_LONG];
+    char temp_2[HTML_LONG];
+    char temp_3[HTML_LONG];
+    cat_str("","",temp);
+    cat_str(temp,"</div>",temp_2);
+    cat_str(true_html,"",temp_3);
+    cat_str(temp_2,"",result_html);
+    cat_str(temp_3,result_html,true_html);
+}
+
+static void _body_o (){
+    
+}
+static void _body_c (){
+    
+}
+
+static void _body (){
+    
+}
+
+static void _head_o (){
+    
+}
+
+static void _head_c (){
+    
+}
+
+static void _head (){
+    
+}
+
+static void _img (){
+    
+}
+
+static void _a (){
+    
+}
+
+static void _section_o (){
+    
+}
+
+static void _section_c (){
+    
+}
+
+static void _section (){
+    
+}
+
+static void _article_o (){
+    
+}
+
+static void _arcticle_c (){
+    
+}
+
+static void _arcticle (){
+    
+}
+
+static void _header_o (){
+    
+}
+
+static void _header_c (){
+    
+}
+
+static void _header (){
+    
+}
+
+static void _footer (){
+    
+}
+
+static void _footer_o (){
+    
+}
+
+static void _footer_c (){
+    
+}
+
+static void _video (){
+    
+}
+
+static void _form (){
+    
+}
+
+static void _form_o (){
+    
+}
+
+static void _form_c (){
+    
+}
+
+static void _input (){
+    
+}
+
+static void _meta (){
+    
+}
+
+static void _link (){
+    
+}
+
+static void _aside (){
+    
+}
+
+static void  _hr (){
+    
+}
+
+static void _br (){
+    
+}
+
+static void _pre (){
+    
+}
+
+static void _center (){
+    
+}
+
+static void _textarea (){
+    
+}
+
+static void _blockquote (){
+    
+}
+
+static void _ol (){
+    
+}
+
+static void _ol_o (){
+    
+}
+
+static void _ol_c (){
+    
+}
+
+static void _ul (){
+    
+}
+
+static void _ul_o (){
+    
+}
+
+static void _ul_c (){
+    
+}
+
+static void _li (){
+    
+}
+
+static void _li_o (){
+    
+}
+
+static void _li_c (){
+    
+}
+
+static void _dl (){
+    
+}
+
+static void _dl_o (){
+    
+}
+
+static void _dl_c (){
+    
+}
+
+static void _dt (){
+    
+}
+
+static void _dt_o (){
+    
+}
+
+static void _dt_c (){
+    
+}
+
+static void _dd (){
+    
+}
+
+static void _dd_o (){
+    
+}
+
+static void _dd_c (){
+    
+}
+
+static void _figure (){
+    
+}
+
+static void _figure_o (){
+    
+}
+
+static void _figure_c (){
+    
+}
+
+static void _small (){
+    
+}
+
+static void _cite (){
+    
+}
+
+static void _sub (){
+    
+}
+
+static void _sup (){
+    
+}
+
+static void _mark (){
+    
+}
+
+static void _iframe (){
+    
+}
+
+static void _embed (){
+    
+}
+
+static void _audio (){
+    
+}
+
+static void _table (){
+    
+}
+
+static void _table_o (){
+    
+}
+
+static void _table_c (){
+    
+}
+
+static void _tbody (){
+    
+}
+
+static void _tbody_o (){
+    
+}
+
+static void _tbody_c (){
+    
+}
+
+static void _thead (){
+    
+}
+
+static void _thead_o (){
+    
+}
+
+static void _thead_c (){
+    
+}
+
+static void _tfoot (){
+    
+}
+
+static void _tfoot_o (){
+    
+}
+
+static void _tfoot_c (){
+    
+}
+
+static void _tr (){
+    
+}
+
+static void _td (){
+    
+}
+
+static void _th (){
+    
+}
+
+static void _label (){
+    
+}
+
+static void _select (){
+    
+}
+
+static void _select_o (){
+    
+}
+
+static void _select_c (){
+    
+}
+
+static void _option (){
+    
+}
+
+static void _option_o (){
+    
+}
+
+static void _option_c (){
+    
+}
+
+static void _caption (){
+    
+}
+
+static int _send_html (struct Server * server){
+    if (listen(server->server_fd, 3) < 0){
+        return HTML_ERROR;
+    }
+    if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
+        return HTML_ERROR;
+    }
+    char *response_2[BUFFER_SIZE];
+    server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
+    cat_str("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n", true_html, response_2);
+    write(server->new_socket, response_2, strlen(response_2));
+    close(server->new_socket);
+    return HTML_OK;
+}
+
+void ini_html (html * html){
+    html->title = _title;
+    html->h1 = _h1;
+    html->h2 = _h2;
+    html->h3 = _h3;
+    html->h4 = _h4;
+    html->h5 = _h5;
+    html->h6 = _h6;
+    html->p = _p;
+    html->button = _button;
+    html->script = _script;
+    html->center_o = _center_open;
+    html->center_c = _center_close;
+    html->send = _send_html;
+    html->div = _div;
+    html->div_o = _div_o;
+    html->div_c = _div_c;
+    html->style = _style;
+    /*html->body_o;
+    html->body_c;
+    html->body;
+    html->head_o;
+    html->head_c;
+    html->head;
+    html->img;
+    html->a;
+    html->section_o;
+    html->section_c;
+    html->section;
+    html->article_o;
+    html->arcticle_c;
+    html->arcticle;
+    html->header_o;
+    html->header_c;
+    html->header;
+    html->footer;
+    html->footer_o;
+    html->footer_c;
+    html->video;
+    html->form;
+    html->form_o;
+    html->form_c;
+    html->input;
+    html->meta;
+    html->link;
+    html->aside;
+    html->hr;
+    html->br;
+    html->pre;
+    html->center;
+    html->textarea;
+    html->blockquote;
+    html->ol;
+    html->ol_o;
+    html->ol_c;
+    html->ul;
+    html->ul_o;
+    html->ul_c;
+    html->li;
+    html->li_o;
+    html->li_c;
+    html->dl;
+    html->dl_o;
+    html->dl_c;
+    html->dt;
+    html->dt_o;
+    html->dt_c;
+    html->dd;
+    html->dd_o;
+    html->dd_c;
+    html->figure;
+    html->figure_o;
+    html->figure_c;
+    html->small;
+    html->cite;
+    html->sub;
+    html->sup;
+    html->mark;
+    html->iframe;
+    html->embed;
+    html->audio;
+    html->table;
+    html->table_o;
+    html->table_c;
+    html->tbody;
+    html->tbody_o;
+    html->tbody_c;
+    html->thead;
+    html->thead_o;
+    html->thead_c;
+    html->tfoot;
+    html->tfoot_o;
+    html->tfoot_c;
+    html->tr;
+    html->td;
+    html->th;
+    html->label;
+    html->select;
+    html->select_o;
+    html->select_c;
+    html->option;
+    html->option_o;
+    html->option_c;
+    html->caption;*/
+}
 
 void server_file_response(int client_socket, const char *content_type, const char *content){
     char response[BUFFER_SIZE];
@@ -158,11 +1010,6 @@ int create_file(const String name, const String data, const String read){
     fprintf(fp,"%s",data);
     fclose(fp);
     return OK;
-}
-
-void cat_str(const char *texto1, const char *texto2, char *resultado){
-    strcpy(resultado, texto1);
-    strcat(resultado, texto2);
 }
 
 void split_lines(const char *text){
@@ -576,15 +1423,16 @@ String read_cookie(struct Server *servidor, const char *request){
     return response;
 }
 
-char * post (const char *text, const char *word, int ini, int end_index){
-    char *text_copy = strdup(text);
-    char *line = strtok(text_copy, "\n");
+String post (const String text, const String word, int ini){
+    String text_copy = strdup(text);
+    String line = strtok(text_copy, "\n");
+    int end_index = 100;
     while (line != NULL){
         char *word_position = strstr(line, word);
         if (word_position != NULL){
             size_t start_index = word_position + ini - line;
-            if (start_index + end_index <= strlen(line)){
-                char *result = malloc(end_index + 1);
+            if (start_index <= strlen(line)){
+                String result = malloc(end_index + 1);
                 strncpy(result, line + start_index, end_index);
                 result[end_index] = '\0';
                 free(text_copy);
@@ -662,34 +1510,18 @@ char * get(const char *text, const char *word, int ini, int end_index, struct Se
     return WEB_ERROR;
 }
 
-char *getPlatform(const char *text, int platform){
-    char *android = "\"Android\"";
-    char *linux = "\"Linux\"";
-    char *windows = "\"Windows\"";
-    char *word;
-    int ini = 1;
-    int end_index;
-
-    if (platform == 7){
-        end_index = 7;
-        word = android;
-    }
-    if (platform == 5){
-        end_index = 6;
-        word = linux;
-    }
-    if (platform == 8){
-        end_index = 7;
-        word = windows;
-    }
-    char *text_copy = strdup(text);
-    char *line = strtok(text_copy, "\n");
+String getPlatform (const String text){
+    String word = "sec-ch-ua-platform: ";
+    int ini = 20;
+    int end_index = 10;
+    String text_copy = strdup(text);
+    String line = strtok(text_copy, "\n");
     while (line != NULL){
-        char *word_position = strstr(line, word);
+        String word_position = strstr(line, word);
         if (word_position != NULL){
             size_t start_index = word_position + ini - line;
-            if (start_index + end_index <= strlen(line)){
-                char *result = malloc(end_index + 1);
+            if (start_index <= strlen(line)){
+                String result = malloc(end_index + 1);
                 strncpy(result, line + start_index, end_index);
                 result[end_index] = '\0';
                 free(text_copy);
@@ -919,11 +1751,11 @@ char *get_response(){
 
 int send_simple_response(struct Server *server, const char *response){
     if (listen(server->server_fd, 3) < 0){
-        perror("  ");
+        perror("");
         return WEB_ERROR;
     }
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
-        perror("  ");
+        perror("");
         return WEB_ERROR;
     }
     char *response_2[BUFFER_SIZE];
@@ -987,7 +1819,7 @@ int send_response_server_view_js(struct Server *server, const char *archivo){
     close(server->new_socket);
 }
 
-/*int listen_server_varic(struct Server *server, const char *archivo, int total, ...){
+int send_response_server_varic(struct Server *server, const char *archivo, int total, ...){
     int i;
     if ((server->new_socket = accept(server->server_fd, (struct sockaddr *)&server->address, (socklen_t *)&server->addrlen)) < 0){
         perror("  ");
@@ -1005,7 +1837,7 @@ int send_response_server_view_js(struct Server *server, const char *archivo){
     va_list args;
     va_start(args, html_content);
     char response_2[BUFFER_SIZE];
-    for (i = 0; i < total + 1 - 1; i++){
+    for (i = 0; i < total; i++){
           String count = va_arg(args, String);
           sprintf(response_2, html_content, count);
      }
@@ -1013,7 +1845,7 @@ int send_response_server_view_js(struct Server *server, const char *archivo){
     server->valread = read(server->new_socket, buffer, BUFFER_SIZE);
     server_file_response(server->new_socket, "text/html", response_2);
     close(server->new_socket);
-}*/
+}
 
 int open_server(struct Server *server){
     server->opt = 1;

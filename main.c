@@ -1,40 +1,28 @@
-//Archivo para probar la libreria webci.h y tambien como usarla
 #include <webci.h>
 #include <sqlite3.h>
 #include <curl/curl.h>
 
 int main(){
-    
-    struct Server servidor;
-    struct files files;
-    
-    servidor.port = 8090;
-    servidor.buffer_file = 4024;
-    strcpy(servidor.cookie_file_name,"namefileuser.txt");
-    open_server(&servidor);
-    
-    while(WEB_TRUE){
-        send_response_server(&servidor,"index.html");
-        printf("%s",get_response());
-        //evitamos que el programa colapse por no haber datos al inicio o para que no interrumpa el flujo de ejecuciòn
-        if(getFileName(&files,get_response(),10) != WEB_ERROR){
-            //obtener el nombre del archivo
-            getLengthNameFile(&files,get_response());
-            getFileName(&files,get_response(),files.len_namefile);
-            //obtener el peso del archivo
-            getLengthStringFile(&files,get_response());
-            getLengthFile(&files,get_response(),files.len_file);
-            //obtener el tipo de archivo(la funciòn getTypeFile() tiene un error)
-            getLengthTypeFile(&files,get_response());
-            getTypeFile(&files,get_response(),files.len_typefile);
-            printf("La longitud de len_namefile es: %d\n",files.len_namefile);
-            printf("La longitud de len_file es: %d\n",files.len_file);
-            printf("La longitud de len_typefile es: %d\n",files.len_typefile);
-            printf("El nombre del archivo es: %s\n",files.name_file);
-            printf("El peso del archivo es: %s\n",files.length_file);
-            printf("Tipo de archivo es: %s\n",files.type_file);
-        }
-    }
-    
-    return 0;
+	
+	html _html;
+	struct Server test;
+	
+	test.port = 8090;
+	test.buffer_file = 4024;
+	open_server(&test);
+	
+    ini_html(&_html);
+	_html.title("Pruebas html");
+	_html.style(".colores h1{ color: red;} .colores p{color : blue;} #colors{ color: red;}");
+	_html.div_o("class=\"colores\"");
+	_html.center_o();
+	_html.h1(NULL,"Este es un titulo");
+	_html.p(NULL,"Este es un parrafo de ejemplo Bene?");
+	_html.h2(NULL,"Sub titulo");
+	_html.p(NULL,"Este es otro parrafo");
+	_html.center_c();
+	_html.div_c();
+	_html.send(&test);
+	printf("%s\n",true_html);
+	return 0;
 }
