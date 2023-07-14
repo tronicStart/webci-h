@@ -2350,39 +2350,44 @@ int create_database(const String name, const String create_table_query){
     return DATABASE_OK;
 }
 
-int insert_database(const String name_base, int total_data, const String sql, String insert, ...){
-    sqlite3 *db;
-    char *err_msg = 0;
+int insert_database(const char* name_base, int total_data, const char* sql, const char* insert, ...) {
+    sqlite3* db;
+    char* err_msg = 0;
     int rc, i;
-    String chonps;
+    va_list args;
     rc = sqlite3_open(name_base, &db);
-    if (rc != SQLITE_OK){
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return DATABASE_ERROR;
     }
     rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
-    if (rc != SQLITE_OK){
+    if (rc != SQLITE_OK) {
         fprintf(stderr, "%s\n", sqlite3_errmsg(db));
         sqlite3_free(err_msg);
         sqlite3_close(db);
         return DATABASE_ERROR;
     }
-    char insert_query[100];
-    va_list args;
     va_start(args, insert);
-    for (i = 0; i < total_data + 1 - 1; i++){
-        String count = va_arg(args, String);
-        sprintf(insert_query, insert, count, chonps);
+    for (i = 0; i < total_data; i++) {
+        const char* count = va_arg(args, const char*);
+        char insert_query[100];
+        char chonps[1000];
+        strcpy(chonps, "some value");
+        if (sprintf(insert_query, insert, count, chonps) < 0) {
+            fprintf(stderr, "Error in sprintf\n");
+            sqlite3_close(db);
+            return DATABASE_ERROR;
+        }
+        rc = sqlite3_exec(db, insert_query, 0, 0, &err_msg);
+        if (rc != SQLITE_OK) {
+            fprintf(stderr, "%s\n", sqlite3_errmsg(db));
+            sqlite3_free(err_msg);
+            sqlite3_close(db);
+            return DATABASE_ERROR;
+        }
     }
     va_end(args);
-    rc = sqlite3_exec(db, insert_query, 0, 0, &err_msg);
-    if (rc != SQLITE_OK){
-        fprintf(stderr, "%s\n", sqlite3_errmsg(db));
-        sqlite3_free(err_msg);
-        sqlite3_close(db);
-        return DATABASE_ERROR;
-    }
     sqlite3_close(db);
     return DATABASE_OK;
 }
