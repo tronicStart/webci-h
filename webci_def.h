@@ -34,10 +34,12 @@
 #define STATUS_ERROR -400
 #define NO_INI_REQUEST -10
 #define INI_REQUEST 10
-#define OS_ANDROID "Android"
-#define OS_LINUX "Linux"
-#define OS_WINDOWS "Windows"
+#define OS_ANDROID "\"Android\""
+#define OS_LINUX "\"Linux\""
+#define OS_WINDOWS "\"Windows\""
 #define HTML_ERROR -303
 #define HTML_OK 303
+#define JS_ERRORS_ON 220
+#define JS_ERRORS_OFF -2020
 
 #endif
